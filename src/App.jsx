@@ -105,7 +105,9 @@ export default function App() {
       }
     } else if (formType === "budget") {
       table = "budgets";
-      payload = { family_id: family.id, category: form.get("category"), amount: Number(form.get("amount")), month: `${new Date().toISOString().slice(0, 7)}-01` };
+      const category = form.get("category") === "__custom__" ? form.get("custom_category").trim() : form.get("category");
+      if (!category) return setMessage("Escribe el nombre del gasto");
+      payload = { family_id: family.id, category, amount: Number(form.get("amount")), month: `${new Date().toISOString().slice(0, 7)}-01` };
     } else if (formType === "goal") {
       table = "goals";
       payload = { family_id: family.id, name: form.get("name"), target_amount: Number(form.get("target_amount")), saved_amount: Number(form.get("saved_amount") || 0), target_date: form.get("target_date") || null };
@@ -163,6 +165,7 @@ export default function App() {
 
 function EntryForm({ type, goals, debts, onClose, onSubmit }) {
   const [movementKind, setMovementKind] = useState("expense");
+  const [budgetCategory, setBudgetCategory] = useState("Luz");
   const title = { transaction: "Movimiento familiar", budget: "Nuevo presupuesto", goal: "Nueva meta de ahorro", debt: "Nueva deuda" }[type];
   const categories = ["Luz","Agua","Internet","Celular","Colegio","Alimentación","Vivienda","Transporte","Educación","Salud","Entretenimiento","Otros"];
   return <div className="backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -179,7 +182,8 @@ function EntryForm({ type, goals, debts, onClose, onSubmit }) {
         {movementKind === "saving" && <label>Meta de ahorro<select name="goal_id" required><option value="">Seleccionar meta</option>{goals.map(x => <option value={x.id} key={x.id}>{x.name}</option>)}</select></label>}
       </>}
       {type === "budget" && <>
-        <label>Gasto fijo o categoría<select name="category">{categories.map(x => <option key={x}>{x}</option>)}</select></label>
+        <label>Gasto fijo o categoría<select name="category" value={budgetCategory} onChange={(e) => setBudgetCategory(e.target.value)}>{categories.filter(x => x !== "Otros").map(x => <option key={x}>{x}</option>)}<option value="__custom__">Personalizado…</option></select></label>
+        {budgetCategory === "__custom__" && <label>Nombre del gasto<input name="custom_category" required placeholder="Escribe el gasto que quieras" /></label>}
         <label>Límite mensual<input name="amount" type="number" min="0.01" step="0.01" required placeholder="S/ 0.00" /></label>
       </>}
       {type === "goal" && <>
