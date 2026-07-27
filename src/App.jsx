@@ -14,7 +14,7 @@ export default function App() {
   const [goals, setGoals] = useState([]);
   const [debts, setDebts] = useState([]);
   const [message, setMessage] = useState("");
-  const [showForm, setShowForm] = useState(false);
+  const [formType, setFormType] = useState(null);
   const [showInvite, setShowInvite] = useState(false);
 
   useEffect(() => {
@@ -71,21 +71,28 @@ export default function App() {
   if (!session) return <AuthScreen onMessage={setMessage} message={message} />;
   if (!family) return <Onboarding session={session} onReady={loadFamily} onMessage={setMessage} message={message} />;
 
-  async function saveTransaction(event) {
+  async function saveEntry(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const { error } = await supabase.from("transactions").insert({
-      family_id: family.id,
-      user_id: session.user.id,
-      type: form.get("type"),
-      amount: Number(form.get("amount")),
-      category: form.get("category"),
-      description: form.get("description"),
-      occurred_at: new Date().toISOString(),
-    });
+    let table;
+    let payload;
+    if (formType === "transaction") {
+      table = "transactions";
+      payload = { family_id: family.id, user_id: session.user.id, type: form.get("type"), amount: Number(form.get("amount")), category: form.get("category"), description: form.get("description"), occurred_at: new Date().toISOString() };
+    } else if (formType === "budget") {
+      table = "budgets";
+      payload = { family_id: family.id, category: form.get("category"), amount: Number(form.get("amount")), month: `${new Date().toISOString().slice(0, 7)}-01` };
+    } else if (formType === "goal") {
+      table = "goals";
+      payload = { family_id: family.id, name: form.get("name"), target_amount: Number(form.get("target_amount")), saved_amount: Number(form.get("saved_amount") || 0), target_date: form.get("target_date") || null };
+    } else {
+      table = "debts";
+      payload = { family_id: family.id, name: form.get("name"), creditor: form.get("creditor"), total_amount: Number(form.get("total_amount")), paid_amount: Number(form.get("paid_amount") || 0), due_date: form.get("due_date") || null, status: "pending" };
+    }
+    const { error } = await supabase.from(table).insert(payload);
     if (error) return setMessage(error.message);
-    setShowForm(false);
-    setMessage("Movimiento guardado");
+    setFormType(null);
+    setMessage("Información guardada");
     await loadData(family.id);
   }
 
@@ -103,7 +110,7 @@ export default function App() {
         goals={goals}
         debts={debts}
         totals={totals}
-        onNewTransaction={() => setShowForm(true)}
+        onNew={(type) => setFormType(type)}
         onInvite={() => setShowInvite(true)}
         onSignOut={() => supabase.auth.signOut()}
       />
@@ -125,20 +132,43 @@ export default function App() {
           </div>
         </div>
       )}
-      {showForm && (
-        <div className="backdrop" onMouseDown={(e) => e.target === e.currentTarget && setShowForm(false)}>
-          <form className="modal" onSubmit={saveTransaction}>
-            <div className="modal-head"><div><p>Nuevo registro</p><h2>Movimiento familiar</h2></div><button type="button" onClick={() => setShowForm(false)}>×</button></div>
-            <label>Tipo<select name="type"><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label>
-            <label>Monto<input name="amount" type="number" min="0.01" step="0.01" required /></label>
-            <label>Descripción<input name="description" required placeholder="Ej. Supermercado" /></label>
-            <label>Categoría<select name="category">{["Alimentación","Vivienda","Transporte","Educación","Salud","Entretenimiento","Ingresos","Otros"].map(x => <option key={x}>{x}</option>)}</select></label>
-            <button className="primary" type="submit">Guardar</button>
-          </form>
-        </div>
-      )}
+      {formType && <EntryForm type={formType} onClose={() => setFormType(null)} onSubmit={saveEntry} />}
     </div>
   );
+}
+
+function EntryForm({ type, onClose, onSubmit }) {
+  const title = { transaction: "Movimiento familiar", budget: "Nuevo presupuesto", goal: "Nueva meta de ahorro", debt: "Nueva deuda" }[type];
+  const categories = ["Alimentación","Vivienda","Transporte","Educación","Salud","Entretenimiento","Ingresos","Otros"];
+  return <div className="backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <form className="modal" onSubmit={onSubmit}>
+      <div className="modal-head"><div><p>Nuevo registro</p><h2>{title}</h2></div><button type="button" onClick={onClose}>×</button></div>
+      {type === "transaction" && <>
+        <label>Tipo<select name="type"><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label>
+        <label>Monto<input name="amount" type="number" min="0.01" step="0.01" required /></label>
+        <label>Descripción<input name="description" required placeholder="Ej. Supermercado" /></label>
+        <label>Categoría<select name="category">{categories.map(x => <option key={x}>{x}</option>)}</select></label>
+      </>}
+      {type === "budget" && <>
+        <label>Categoría<select name="category">{categories.filter(x => x !== "Ingresos").map(x => <option key={x}>{x}</option>)}</select></label>
+        <label>Límite mensual<input name="amount" type="number" min="0.01" step="0.01" required placeholder="S/ 0.00" /></label>
+      </>}
+      {type === "goal" && <>
+        <label>Nombre de la meta<input name="name" required placeholder="Ej. Viaje familiar" /></label>
+        <label>Monto objetivo<input name="target_amount" type="number" min="0.01" step="0.01" required /></label>
+        <label>Ahorrado actualmente<input name="saved_amount" type="number" min="0" step="0.01" defaultValue="0" /></label>
+        <label>Fecha objetivo<input name="target_date" type="date" /></label>
+      </>}
+      {type === "debt" && <>
+        <label>Nombre de la deuda<input name="name" required placeholder="Ej. Préstamo" /></label>
+        <label>Acreedor<input name="creditor" required placeholder="Banco o persona" /></label>
+        <label>Monto total<input name="total_amount" type="number" min="0.01" step="0.01" required /></label>
+        <label>Monto pagado<input name="paid_amount" type="number" min="0" step="0.01" defaultValue="0" /></label>
+        <label>Fecha de vencimiento<input name="due_date" type="date" /></label>
+      </>}
+      <button className="primary" type="submit">Guardar</button>
+    </form>
+  </div>;
 }
 
 function Card({ icon, label, value, tone }) {
