@@ -74,6 +74,11 @@ export default function App() {
     await loadData(family.id);
   }
 
+  async function copyFamilyCode() {
+    await navigator.clipboard.writeText(family.join_code);
+    setMessage("Código familiar copiado");
+  }
+
   return (
     <div className="shell">
       <header>
@@ -84,6 +89,14 @@ export default function App() {
         <section className="hero">
           <div><p>Resumen familiar</p><h1>Finanzas del hogar</h1><span>Una sola cuenta compartida entre ambos.</span></div>
           <button className="primary" onClick={() => setShowForm(true)}><Plus size={19} /> Registrar movimiento</button>
+        </section>
+        <section className="panel family-access">
+          <div>
+            <p>Invitar a tu pareja</p>
+            <h2>Código familiar: <strong>{family.join_code}</strong></h2>
+            <span>Tu esposa debe crear su propio usuario y elegir “Ya tengo un código”. Ambos verán los mismos datos.</span>
+          </div>
+          <button className="ghost" type="button" onClick={copyFamilyCode}>Copiar código</button>
         </section>
         <section className="metrics">
           <Card icon={<ArrowUp />} label="Ingresos" value={money.format(totals.income)} tone="green" />
