@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowDown, ArrowUp, LogOut, Plus, WalletCards } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Copy, LogOut, Plus, Users, WalletCards } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { summarize } from "./lib/finance";
 
@@ -98,12 +98,17 @@ export default function App() {
           <button className="primary" onClick={() => setShowForm(true)}><Plus size={19} /> Registrar movimiento</button>
         </section>
         <section className="panel family-access">
-          <div>
-            <p>Invitar a tu pareja</p>
-            <h2>Código familiar: <strong>{family.join_code}</strong></h2>
-            <span>Tu esposa debe crear su propio usuario y elegir “Ya tengo un código”. Ambos verán los mismos datos.</span>
+          <div className="family-access-icon"><Users size={24} /></div>
+          <div className="family-access-copy">
+            <p>Cuenta compartida</p>
+            <h2>Invita a tu esposa</h2>
+            <span>Ella crea su usuario y selecciona “Ya tengo un código”.</span>
           </div>
-          <button className="ghost" type="button" onClick={copyFamilyCode}>Copiar código</button>
+          <div className="family-code">
+            <small>Código familiar</small>
+            <strong>{family.join_code}</strong>
+          </div>
+          <button className="copy-code" type="button" onClick={copyFamilyCode}><Copy size={17} /> Copiar</button>
         </section>
         <section className="metrics">
           <Card icon={<ArrowUp />} label="Ingresos" value={money.format(totals.income)} tone="green" />
