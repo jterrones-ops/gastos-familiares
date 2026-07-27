@@ -12,6 +12,7 @@ export default function App() {
   const [budgets, setBudgets] = useState([]);
   const [message, setMessage] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -90,25 +91,15 @@ export default function App() {
     <div className="shell">
       <header>
         <div className="brand"><span><WalletCards size={22} /></span><div><strong>Mi Familia</strong><small>{family.name}</small></div></div>
-        <button className="ghost" onClick={() => supabase.auth.signOut()}><LogOut size={18} /> Salir</button>
+        <div className="header-actions">
+          <button className="ghost invite-button" onClick={() => setShowInvite(true)}><Users size={18} /> Invitar</button>
+          <button className="ghost" onClick={() => supabase.auth.signOut()}><LogOut size={18} /> Salir</button>
+        </div>
       </header>
       <main>
         <section className="hero">
           <div><p>Resumen familiar</p><h1>Finanzas del hogar</h1><span>Una sola cuenta compartida entre ambos.</span></div>
           <button className="primary" onClick={() => setShowForm(true)}><Plus size={19} /> Registrar movimiento</button>
-        </section>
-        <section className="panel family-access">
-          <div className="family-access-icon"><Users size={24} /></div>
-          <div className="family-access-copy">
-            <p>Cuenta compartida</p>
-            <h2>Invita a tu esposa</h2>
-            <span>Ella crea su usuario y selecciona “Ya tengo un código”.</span>
-          </div>
-          <div className="family-code">
-            <small>Código familiar</small>
-            <strong>{family.join_code}</strong>
-          </div>
-          <button className="copy-code" type="button" onClick={copyFamilyCode}><Copy size={17} /> Copiar</button>
         </section>
         <section className="metrics">
           <Card icon={<ArrowUp />} label="Ingresos" value={money.format(totals.income)} tone="green" />
@@ -131,6 +122,23 @@ export default function App() {
         </section>
       </main>
       {message && <div className="toast">{message}</div>}
+      {showInvite && (
+        <div className="backdrop" onMouseDown={(e) => e.target === e.currentTarget && setShowInvite(false)}>
+          <div className="modal invite-modal">
+            <div className="modal-head">
+              <div><p>Cuenta compartida</p><h2>Invitar a tu esposa</h2></div>
+              <button type="button" onClick={() => setShowInvite(false)}>×</button>
+            </div>
+            <div className="invite-illustration"><Users size={26} /></div>
+            <p className="invite-help">Ella debe crear su propio usuario y seleccionar “Ya tengo un código”. Ambos verán los mismos datos.</p>
+            <div className="family-code">
+              <small>Código familiar</small>
+              <strong>{family.join_code}</strong>
+            </div>
+            <button className="copy-code" type="button" onClick={copyFamilyCode}><Copy size={17} /> Copiar código</button>
+          </div>
+        </div>
+      )}
       {showForm && (
         <div className="backdrop" onMouseDown={(e) => e.target === e.currentTarget && setShowForm(false)}>
           <form className="modal" onSubmit={saveTransaction}>
