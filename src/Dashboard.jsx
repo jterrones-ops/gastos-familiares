@@ -16,7 +16,7 @@ const nav = [
 
 export default function Dashboard({
   family, transactions, budgets, goals, debts, totals,
-  onNewTransaction, onInvite, onSignOut,
+  onNew, onInvite, onSignOut,
 }) {
   const [active, setActive] = useState("summary");
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -25,6 +25,13 @@ export default function Dashboard({
     acc[item.category] = (acc[item.category] || 0) + Number(item.amount);
     return acc;
   }, {}), [expenses]);
+  const action = {
+    summary: ["transaction", "Registrar movimiento"],
+    transactions: ["transaction", "Registrar movimiento"],
+    budgets: ["budget", "Nuevo presupuesto"],
+    goals: ["goal", "Nueva meta"],
+    debts: ["debt", "Nueva deuda"],
+  }[active];
 
   function go(id) {
     setActive(id);
@@ -54,7 +61,7 @@ export default function Dashboard({
           <div><small>{family.name}</small><h1>{active === "summary" ? "Buenos días, Familia" : nav.find(x => x[0] === active)?.[1]}</h1></div>
           <div className="top-actions">
             <div className="member-bubbles"><span>J</span><span>+</span></div>
-            <button className="primary" onClick={onNewTransaction}><Plus size={19} /> Registrar movimiento</button>
+            {action && <button className="primary" onClick={() => onNew(action[0])}><Plus size={19} /> {action[1]}</button>}
           </div>
         </header>
 
