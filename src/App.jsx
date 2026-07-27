@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowDown, ArrowUp, Copy, LogOut, Plus, Users, WalletCards } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { summarize } from "./lib/finance";
+import Dashboard from "./Dashboard";
 
 const money = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
 
@@ -10,6 +11,8 @@ export default function App() {
   const [family, setFamily] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [budgets, setBudgets] = useState([]);
+  const [goals, setGoals] = useState([]);
+  const [debts, setDebts] = useState([]);
   const [message, setMessage] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
@@ -45,12 +48,16 @@ export default function App() {
   }
 
   async function loadData(familyId) {
-    const [{ data: rows }, { data: limits }] = await Promise.all([
+    const [{ data: rows }, { data: limits }, { data: goalRows }, { data: debtRows }] = await Promise.all([
       supabase.from("transactions").select("*").eq("family_id", familyId).order("occurred_at", { ascending: false }),
       supabase.from("budgets").select("*").eq("family_id", familyId),
+      supabase.from("goals").select("*").eq("family_id", familyId),
+      supabase.from("debts").select("*").eq("family_id", familyId),
     ]);
     setTransactions(rows || []);
     setBudgets(limits || []);
+    setGoals(goalRows || []);
+    setDebts(debtRows || []);
   }
 
   const totals = useMemo(() => summarize(transactions), [transactions]);
@@ -88,39 +95,18 @@ export default function App() {
   }
 
   return (
-    <div className="shell">
-      <header>
-        <div className="brand"><span><WalletCards size={22} /></span><div><strong>Mi Familia</strong><small>{family.name}</small></div></div>
-        <div className="header-actions">
-          <button className="ghost invite-button" onClick={() => setShowInvite(true)}><Users size={18} /> Invitar</button>
-          <button className="ghost" onClick={() => supabase.auth.signOut()}><LogOut size={18} /> Salir</button>
-        </div>
-      </header>
-      <main>
-        <section className="hero">
-          <div><p>Resumen familiar</p><h1>Finanzas del hogar</h1><span>Una sola cuenta compartida entre ambos.</span></div>
-          <button className="primary" onClick={() => setShowForm(true)}><Plus size={19} /> Registrar movimiento</button>
-        </section>
-        <section className="metrics">
-          <Card icon={<ArrowUp />} label="Ingresos" value={money.format(totals.income)} tone="green" />
-          <Card icon={<ArrowDown />} label="Gastos" value={money.format(totals.expense)} tone="coral" />
-          <Card icon={<WalletCards />} label="Disponible" value={money.format(totals.balance)} tone="blue" />
-        </section>
-        {alerts.length > 0 && <div className="alert"><AlertTriangle size={19} /> Hay categorías que alcanzaron el 90% del presupuesto.</div>}
-        <section className="panel">
-          <div className="panel-title"><div><p>Últimos registros</p><h2>Movimientos</h2></div><span>{transactions.length} registros</span></div>
-          <div className="list">
-            {transactions.length === 0 && <div className="empty">Todavía no hay movimientos. La aplicación está lista para comenzar.</div>}
-            {transactions.slice(0, 12).map((item) => (
-              <div className="row" key={item.id}>
-                <span className={`dot ${item.type}`} />
-                <div><strong>{item.description}</strong><small>{item.category}</small></div>
-                <strong className={item.type}>{item.type === "expense" ? "−" : "+"}{money.format(item.amount)}</strong>
-              </div>
-            ))}
-          </div>
-        </section>
-      </main>
+    <div>
+      <Dashboard
+        family={family}
+        transactions={transactions}
+        budgets={budgets}
+        goals={goals}
+        debts={debts}
+        totals={totals}
+        onNewTransaction={() => setShowForm(true)}
+        onInvite={() => setShowInvite(true)}
+        onSignOut={() => supabase.auth.signOut()}
+      />
       {message && <div className="toast">{message}</div>}
       {showInvite && (
         <div className="backdrop" onMouseDown={(e) => e.target === e.currentTarget && setShowInvite(false)}>
