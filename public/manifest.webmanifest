@@ -1,0 +1,10 @@
+{
+  "name": "Mi Familia - Gastos",
+  "short_name": "Mi Familia",
+  "description": "Control familiar de ingresos, gastos, presupuestos, ahorros y deudas.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f8f5",
+  "theme_color": "#355f50",
+  "icons": []
+}
