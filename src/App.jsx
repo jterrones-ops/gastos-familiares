@@ -25,6 +25,13 @@ export default function App() {
   }, [session]);
 
   async function loadFamily() {
+    const { error: userError } = await supabase.auth.getUser();
+    if (userError) {
+      await supabase.auth.signOut({ scope: "local" });
+      setSession(null);
+      setMessage("La sesión anterior fue eliminada. Crea tu cuenta nuevamente.");
+      return;
+    }
     const { data, error } = await supabase
       .from("family_members")
       .select("family_id, families(id,name,join_code)")
@@ -189,6 +196,7 @@ function Onboarding({ onReady, onMessage, message }) {
       <button className="primary" type="submit">Continuar</button>
     </form>
     <button className="link" onClick={() => setMode(mode === "create" ? "join" : "create")}>{mode === "create" ? "Ya tengo un código" : "Crear una familia"}</button>
+    <button className="link" onClick={() => supabase.auth.signOut({ scope: "local" })}>Cerrar sesión</button>
     {message && <p className="form-message">{message}</p>}
   </div></div>;
 }
