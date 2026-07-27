@@ -77,8 +77,32 @@ export default function App() {
     let table;
     let payload;
     if (formType === "transaction") {
+      const movementKind = form.get("movement_kind");
+      const amount = Number(form.get("amount"));
+      if (movementKind === "debt_payment") {
+        const debt = debts.find((item) => item.id === form.get("debt_id"));
+        if (!debt) return setMessage("Selecciona una deuda");
+        const newPaid = Number(debt.paid_amount) + amount;
+        const { error: debtError } = await supabase.from("debts").update({
+          paid_amount: newPaid,
+          status: newPaid >= Number(debt.total_amount) ? "paid" : "pending",
+        }).eq("id", debt.id);
+        if (debtError) return setMessage(debtError.message);
+        table = "transactions";
+        payload = { family_id: family.id, user_id: session.user.id, type: "expense", amount, category: "Pago de deuda", description: `Pago: ${debt.name}`, occurred_at: new Date().toISOString() };
+      } else if (movementKind === "saving") {
+        const goal = goals.find((item) => item.id === form.get("goal_id"));
+        if (!goal) return setMessage("Selecciona una meta");
+        const { error: goalError } = await supabase.from("goals").update({
+          saved_amount: Number(goal.saved_amount) + amount,
+        }).eq("id", goal.id);
+        if (goalError) return setMessage(goalError.message);
+        table = "transactions";
+        payload = { family_id: family.id, user_id: session.user.id, type: "expense", amount, category: "Ahorro", description: `Aporte: ${goal.name}`, occurred_at: new Date().toISOString() };
+      } else {
       table = "transactions";
-      payload = { family_id: family.id, user_id: session.user.id, type: form.get("type"), amount: Number(form.get("amount")), category: form.get("category"), description: form.get("description"), occurred_at: new Date().toISOString() };
+        payload = { family_id: family.id, user_id: session.user.id, type: movementKind, amount, category: form.get("category"), description: form.get("description"), occurred_at: new Date().toISOString() };
+      }
     } else if (formType === "budget") {
       table = "budgets";
       payload = { family_id: family.id, category: form.get("category"), amount: Number(form.get("amount")), month: `${new Date().toISOString().slice(0, 7)}-01` };
@@ -132,25 +156,30 @@ export default function App() {
           </div>
         </div>
       )}
-      {formType && <EntryForm type={formType} onClose={() => setFormType(null)} onSubmit={saveEntry} />}
+      {formType && <EntryForm type={formType} goals={goals} debts={debts} onClose={() => setFormType(null)} onSubmit={saveEntry} />}
     </div>
   );
 }
 
-function EntryForm({ type, onClose, onSubmit }) {
+function EntryForm({ type, goals, debts, onClose, onSubmit }) {
+  const [movementKind, setMovementKind] = useState("expense");
   const title = { transaction: "Movimiento familiar", budget: "Nuevo presupuesto", goal: "Nueva meta de ahorro", debt: "Nueva deuda" }[type];
-  const categories = ["Alimentación","Vivienda","Transporte","Educación","Salud","Entretenimiento","Ingresos","Otros"];
+  const categories = ["Luz","Agua","Internet","Celular","Colegio","Alimentación","Vivienda","Transporte","Educación","Salud","Entretenimiento","Otros"];
   return <div className="backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
     <form className="modal" onSubmit={onSubmit}>
       <div className="modal-head"><div><p>Nuevo registro</p><h2>{title}</h2></div><button type="button" onClick={onClose}>×</button></div>
       {type === "transaction" && <>
-        <label>Tipo<select name="type"><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label>
+        <label>Tipo de movimiento<select name="movement_kind" value={movementKind} onChange={(e) => setMovementKind(e.target.value)}><option value="expense">Gasto</option><option value="income">Ingreso</option><option value="debt_payment">Pago de deuda</option><option value="saving">Aporte de ahorro</option></select></label>
         <label>Monto<input name="amount" type="number" min="0.01" step="0.01" required /></label>
-        <label>Descripción<input name="description" required placeholder="Ej. Supermercado" /></label>
-        <label>Categoría<select name="category">{categories.map(x => <option key={x}>{x}</option>)}</select></label>
+        {(movementKind === "expense" || movementKind === "income") && <>
+          <label>Descripción<input name="description" required placeholder={movementKind === "income" ? "Ej. Sueldo" : "Ej. Supermercado"} /></label>
+          <label>Categoría<select name="category">{(movementKind === "income" ? ["Sueldo","Ingreso adicional","Otros ingresos"] : categories).map(x => <option key={x}>{x}</option>)}</select></label>
+        </>}
+        {movementKind === "debt_payment" && <label>Deuda<select name="debt_id" required><option value="">Seleccionar deuda</option>{debts.filter(x => x.status === "pending").map(x => <option value={x.id} key={x.id}>{x.name}</option>)}</select></label>}
+        {movementKind === "saving" && <label>Meta de ahorro<select name="goal_id" required><option value="">Seleccionar meta</option>{goals.map(x => <option value={x.id} key={x.id}>{x.name}</option>)}</select></label>}
       </>}
       {type === "budget" && <>
-        <label>Categoría<select name="category">{categories.filter(x => x !== "Ingresos").map(x => <option key={x}>{x}</option>)}</select></label>
+        <label>Gasto fijo o categoría<select name="category">{categories.map(x => <option key={x}>{x}</option>)}</select></label>
         <label>Límite mensual<input name="amount" type="number" min="0.01" step="0.01" required placeholder="S/ 0.00" /></label>
       </>}
       {type === "goal" && <>
